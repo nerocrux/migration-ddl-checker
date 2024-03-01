@@ -1,0 +1,26 @@
+name: Release
+on:
+  release:
+    types:
+      - created
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+
+      - name: Build project
+        run: GOOS=linux GOARCH=amd64 go build -o migration-ddl-checker
+      
+      - name: Upload Release Asset
+        uses: AButler/upload-release-assets@v3.0
+        with:
+          files: './migration-ddl-checker'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
