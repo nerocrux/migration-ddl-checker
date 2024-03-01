@@ -50,7 +50,7 @@ func main() {
 			if err != nil {
 				return err
 			}
-			os.Stdout.WriteString(strings.Join(hazardousFiles, "\n") + "\n")
+			os.Stdout.WriteString(strings.Join(hazardousFiles, ",") + "\n")
 			return nil
 		},
 	}
