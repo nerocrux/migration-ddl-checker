@@ -1,18 +1,25 @@
 package analyzer
 
 import (
+	"slices"
+
 	"github.com/MakeNowJust/heredoc/v2"
 	"github.com/cloudspannerecosystem/memefish"
 	"github.com/cloudspannerecosystem/memefish/ast"
 	"github.com/cloudspannerecosystem/memefish/token"
+	"github.com/nerocrux/migration-ddl-checker/ddl"
 )
 
 // https://pkg.go.dev/github.com/cloudspannerecosystem/memefish@v0.0.0-20231128072053-0a1141e8eb65/ast
 
-type SpannerAnalyzer struct{}
+type SpannerAnalyzer struct {
+	HazardousDDLs []ddl.DDL
+}
 
-func NewSpannerAnalyzer() *SpannerAnalyzer {
-	return &SpannerAnalyzer{}
+func NewSpannerAnalyzer(ddl []ddl.DDL) *SpannerAnalyzer {
+	return &SpannerAnalyzer{
+		HazardousDDLs: ddl,
+	}
 }
 
 func (a *SpannerAnalyzer) Analyze(contents string) (bool, error) {
@@ -37,23 +44,33 @@ func (a *SpannerAnalyzer) Analyze(contents string) (bool, error) {
 	return false, nil
 }
 
-func (a *SpannerAnalyzer) isSingleStmtHazardous(ddl ast.DDL) bool {
-	switch ddl.(type) {
+func (a *SpannerAnalyzer) IsHazardousDDL(d ddl.DDL) bool {
+	return slices.Contains(a.HazardousDDLs, d)
+}
+
+func (a *SpannerAnalyzer) isSingleStmtHazardous(d ast.DDL) bool {
+	switch d.(type) {
 	case *ast.CreateChangeStream, *ast.CreateDatabase, *ast.CreateIndex, *ast.CreateRole, *ast.CreateSequence, *ast.CreateTable, *ast.CreateView:
-		return false
+		return a.IsHazardousDDL(ddl.CreateDDL)
+	case *ast.DropIndex, *ast.DropTable:
+		return a.IsHazardousDDL(ddl.DropDDL)
 	case *ast.AlterTable:
-		return a.isAlterHazardous(ddl)
+		return a.isAlterHazardous(d)
 	default:
 	}
 	return true
 }
 
-func (a *SpannerAnalyzer) isAlterHazardous(ddl ast.DDL) bool {
-	alterTable, _ := ddl.(*ast.AlterTable)
+func (a *SpannerAnalyzer) isAlterHazardous(d ast.DDL) bool {
+	alterTable, _ := d.(*ast.AlterTable)
 	switch alterTable.TableAlteration.(type) {
-	// ALTER TABLE ... ADD COLUMN ... is safe
+	// ALTER TABLE ... ADD COLUMN ...
 	case *ast.AddColumn:
-		return false
+		return a.IsHazardousDDL(ddl.CreateDDL)
+	case *ast.DropColumn:
+		return a.IsHazardousDDL(ddl.DropDDL)
+	case *ast.AlterColumn:
+		return a.IsHazardousDDL(ddl.AlterDDL)
 	default:
 	}
 	return true

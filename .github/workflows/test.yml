@@ -1,0 +1,21 @@
+name: Unit test
+
+on: [push]
+
+jobs:
+  testing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout upstream repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ github.head_ref }}
+      - uses: actions/setup-go@v3
+        with:
+          go-version-file: "go.mod"
+      - name: Run tests
+        shell: bash
+        run: |
+          go test --tags github_test ./... -coverprofile=coverage.out
+      - name: Show coverage
+        uses: k1LoW/octocov-action@v0
