@@ -5,7 +5,6 @@ import (
 
 	"github.com/nerocrux/migration-ddl-checker/ddl"
 	pg_query "github.com/pganalyze/pg_query_go/v5"
-	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type PostgresqlAnalyzer struct {
@@ -45,7 +44,7 @@ func (a *PostgresqlAnalyzer) isSingleStmtHazardous(stmt *pg_query.RawStmt) bool 
 	case *pg_query.Node_IndexStmt:
 		return a.IsHazardousDDL(ddl.CreateDDL)
 	case *pg_query.Node_AlterTableStmt:
-		return a.isAlterHazardous(stmt.Stmt.GetAlterTableStmt().GetObjtype().Enum())
+		return a.isAlterHazardous(stmt.Stmt.GetAlterTableStmt().Cmds)
 	case *pg_query.Node_DropStmt, *pg_query.Node_DeleteStmt:
 		return a.IsHazardousDDL(ddl.DropDDL)
 	default:
@@ -53,13 +52,16 @@ func (a *PostgresqlAnalyzer) isSingleStmtHazardous(stmt *pg_query.RawStmt) bool 
 	return false
 }
 
-func (a *PostgresqlAnalyzer) isAlterHazardous(typ protoreflect.Enum) bool {
-	switch typ {
-	case pg_query.AlterTableType_AT_AddColumn, pg_query.AlterTableType_AT_AddIndex:
-		return a.IsHazardousDDL(ddl.CreateDDL)
-	case pg_query.AlterTableType_AT_DropColumn:
-		return a.IsHazardousDDL(ddl.DropDDL)
-	default:
+func (a *PostgresqlAnalyzer) isAlterHazardous(cmds []*pg_query.Node) bool {
+	for _, cmd := range cmds {
+		switch cmd.GetAlterTableCmd().Subtype {
+		case pg_query.AlterTableType_AT_AddColumn, pg_query.AlterTableType_AT_AddIndex:
+			return a.IsHazardousDDL(ddl.CreateDDL)
+		case pg_query.AlterTableType_AT_DropColumn:
+			return a.IsHazardousDDL(ddl.DropDDL)
+		default:
+		}
 	}
+	// unknown alter table command subtype, always return true
 	return false
 }

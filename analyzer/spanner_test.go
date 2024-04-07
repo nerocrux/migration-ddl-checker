@@ -10,7 +10,7 @@ import (
 )
 
 var query_Spanner_CREATE = []string{
-	`CREATE TABLE users (id INT64) PRIMARY KEY (id);`,
+	`CREATE TABLE users(id INT64) PRIMARY KEY (id);`,
 	`CREATE INDEX SingersByFirstName ON Singers(FirstName);`,
 	`ALTER TABLE Songwriters ADD COLUMN Nickname STRING(MAX) NOT NULL;`,
 }
@@ -52,6 +52,114 @@ func TestAnalyzeSpanner_CREATE(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			a := analyzer.NewSpannerAnalyzer(ddl.FromConfig([]string{"CREATE"}))
+			for _, q := range tt.contents {
+				got, err := a.Analyze(q)
+				require.NoError(t, err, q)
+				assert.Equal(t, tt.want, got, q)
+			}
+		})
+	}
+}
+
+func TestAnalyzeSpanner_DROP(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		contents []string
+		want     bool
+	}{
+		{
+			name:     "create queries",
+			contents: query_Spanner_CREATE,
+			want:     false,
+		},
+		{
+			name:     "drop queries",
+			contents: query_Spanner_DROP,
+			want:     true,
+		},
+		{
+			name:     "alter queries",
+			contents: query_Spanner_ALTER,
+			want:     false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := analyzer.NewSpannerAnalyzer(ddl.FromConfig([]string{"DROP"}))
+			for _, q := range tt.contents {
+				got, err := a.Analyze(q)
+				require.NoError(t, err, q)
+				assert.Equal(t, tt.want, got, q)
+			}
+		})
+	}
+}
+
+func TestAnalyzeSpanner_ALTER(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		contents []string
+		want     bool
+	}{
+		{
+			name:     "create queries",
+			contents: query_Spanner_CREATE,
+			want:     false,
+		},
+		{
+			name:     "drop queries",
+			contents: query_Spanner_DROP,
+			want:     false,
+		},
+		{
+			name:     "alter queries",
+			contents: query_Spanner_ALTER,
+			want:     true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := analyzer.NewSpannerAnalyzer(ddl.FromConfig([]string{"ALTER"}))
+			for _, q := range tt.contents {
+				got, err := a.Analyze(q)
+				require.NoError(t, err, q)
+				assert.Equal(t, tt.want, got, q)
+			}
+		})
+	}
+}
+
+func TestAnalyzeSpanner_MULTIPLE(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		contents []string
+		want     bool
+	}{
+		{
+			name:     "create queries",
+			contents: query_Spanner_CREATE,
+			want:     true,
+		},
+		{
+			name:     "drop queries",
+			contents: query_Spanner_DROP,
+			want:     true,
+		},
+		{
+			name:     "alter queries",
+			contents: query_Spanner_ALTER,
+			want:     true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			a := analyzer.NewSpannerAnalyzer(ddl.FromConfig([]string{"CREATE", "DROP", "ALTER"}))
 			for _, q := range tt.contents {
 				got, err := a.Analyze(q)
 				require.NoError(t, err, q)

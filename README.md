@@ -9,7 +9,15 @@ If dangerous database operations contained, it reports those files.
 # Usage
 
 ```
-$ ./migration-ddl-checker --syntax [spanner|mysql|postgresql] --target-files [comma seperated file paths]
+$ ./migration-ddl-checker --syntax [spanner|mysql|postgresql] --target-files [comma seperated file paths] --hazardous-ddl [comma seperated ddl category]
 ```
 
-If syntax not specified, all target files will be reported (as hazardous files).
+## hazardous-ddl
+
+There are 3 options.
+
+- `CREATE`: CREATE Table, CREATE Index, CREATE Unque Index, etc.
+- `DROP`: DROP Table, DROP Index, etc.
+- `ALTER`: Currently only Spanner's `ALTER COLUMN` goes here.
+
+If syntax not specified, all target files will be reported as hazardous files.
